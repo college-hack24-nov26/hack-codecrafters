@@ -89,3 +89,36 @@ class IncidentResponse(BaseModel):
     ended_at: datetime | None
     duration_minutes: float | None
     summary: str | None
+
+# QC RECORD SCHEMAS
+
+class QCCreate(BaseModel):
+    batch_id: int = Field(gt=0)
+    inspector_id: int | None = Field(default=None, gt=0)
+    sample_time: datetime | None = None
+    fat_percent: float | None = Field(default=None, ge=0, le=100)
+    snf_percent: float | None = Field(default=None, ge=0, le=100)
+    acidity: float | None = Field(default=None, ge=0)
+    notes: str | None = None
+
+
+class QCUpdate(BaseModel):
+    fat_percent: float | None = Field(default=None, ge=0, le=100)
+    snf_percent: float | None = Field(default=None, ge=0, le=100)
+    acidity: float | None = Field(default=None, ge=0)
+    qc_status: str | None = Field(default=None, max_length=40)
+    notes: str | None = None
+
+
+class QCResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    batch_id: int
+    inspector_id: int | None
+    sample_time: datetime
+    fat_percent: float | None
+    snf_percent: float | None
+    acidity: float | None
+    qc_status: str
+    notes: str | None
