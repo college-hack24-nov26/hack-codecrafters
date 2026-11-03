@@ -420,6 +420,178 @@ function App() {
                 </div>
               </div>
             </>
+          ) : active === "Incidents" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Incident Management</h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Review cold-chain incidents reported in the backend.
+                  </p>
+                </div>
+
+                <button
+                  onClick={loadDashboard}
+                  disabled={loading}
+                  className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  Refresh Incidents
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {[
+                  {
+                    label: "Total Incidents",
+                    value: incidents.length,
+                    style: "bg-slate-100 text-slate-800",
+                  },
+                  {
+                    label: "High Severity",
+                    value: highRisk,
+                    style: "bg-red-100 text-red-700",
+                  },
+                  {
+                    label: "Medium Severity",
+                    value: mediumRisk,
+                    style: "bg-amber-100 text-amber-700",
+                  },
+                  {
+                    label: "Open Incidents",
+                    value: openIncidents,
+                    style: "bg-cyan-100 text-cyan-700",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+                  >
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <h3 className="text-3xl font-bold">
+                        {loading ? "..." : item.value}
+                      </h3>
+                      <span className={`px-3 py-2 rounded-lg text-sm font-bold ${item.style}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-slate-100">
+                  <h3 className="text-lg font-bold">All Reported Incidents</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Incident records fetched from the DairySync backend.
+                  </p>
+                </div>
+
+                {loading ? (
+                  <div className="p-10 text-center text-slate-500">
+                    Loading incidents...
+                  </div>
+                ) : incidents.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <AlertTriangle size={35} className="mx-auto text-slate-300 mb-3" />
+                    <h3 className="font-semibold">No incidents found</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      No incident records are currently available.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">Incident ID</th>
+                          <th className="px-5 py-4">Batch ID</th>
+                          <th className="px-5 py-4">Incident Type</th>
+                          <th className="px-5 py-4">Severity</th>
+                          <th className="px-5 py-4">Status</th>
+                          <th className="px-5 py-4">Started At</th>
+                          <th className="px-5 py-4">Duration</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {incidents.map((incident) => (
+                          <tr
+                            key={incident.id}
+                            className="border-t border-slate-100 hover:bg-slate-50"
+                          >
+                            <td className="px-5 py-4 font-semibold">
+                              #{incident.id}
+                            </td>
+                            <td className="px-5 py-4">#{incident.batch_id}</td>
+                            <td className="px-5 py-4 font-medium">
+                              {incident.incident_type || "—"}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                  incident.severity === "HIGH"
+                                    ? "bg-red-100 text-red-700"
+                                    : incident.severity === "MEDIUM"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-green-100 text-green-700"
+                                }`}
+                              >
+                                {incident.severity || "UNKNOWN"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              {incident.status || "—"}
+                            </td>
+                            <td className="px-5 py-4">
+                              {incident.started_at
+                                ? new Date(incident.started_at).toLocaleString()
+                                : "—"}
+                            </td>
+                            <td className="px-5 py-4">
+                              {incident.duration_minutes != null
+                                ? `${incident.duration_minutes} min`
+                                : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <h3 className="font-bold text-lg">Incident Summaries</h3>
+                {incidents.map((incident) => (
+                  <div
+                    key={incident.id}
+                    className="bg-white border border-slate-200 rounded-xl p-5"
+                  >
+                    <div className="flex flex-wrap justify-between gap-2 mb-2">
+                      <p className="font-semibold">
+                        Incident #{incident.id} — Batch #{incident.batch_id}
+                      </p>
+                      <span className="text-xs text-slate-500">
+                        {incident.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      {incident.summary || "No incident summary available."}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900">
+                  <strong>Important:</strong> DairySync provides incident
+                  information for investigation and decision support. Final
+                  quality decisions remain with authorized QC personnel.
+                </p>
+              </div>
+            </>
           ) : active === "Dashboard" ? (
             <>
               <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
