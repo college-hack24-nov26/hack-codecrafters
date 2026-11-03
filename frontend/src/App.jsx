@@ -34,6 +34,7 @@ function App() {
 
   const [batches, setBatches] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [qcRecords, setQCRecords] = useState([]);
   const [alerts, setAlerts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -50,15 +51,17 @@ function App() {
     setError("");
 
     try {
-      const [batchData, incidentData, alertData] = await Promise.all([
+      const [batchData, incidentData, alertData, qcData] = await Promise.all([
         api.getBatches(),
         api.getIncidents(),
         api.getAlerts(),
+        api.getQCRecords(),
       ]);
 
       setBatches(Array.isArray(batchData) ? batchData : []);
       setIncidents(Array.isArray(incidentData) ? incidentData : []);
       setAlerts(Array.isArray(alertData) ? alertData : []);
+      setQCRecords(Array.isArray(qcData) ? qcData : []);
     } catch (err) {
       setError(err.message || "Unable to load dashboard data");
     } finally {
@@ -590,6 +593,102 @@ function App() {
                   information for investigation and decision support. Final
                   quality decisions remain with authorized QC personnel.
                 </p>
+              </div>
+            </>
+          ) : active === "QC Records" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">QC Records Management</h2>
+                  <p className="text-slate-500 text-sm mt-1">Review recorded milk quality measurements and verification status.</p>
+                </div>
+                <button onClick={loadDashboard} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2">
+                  <RefreshCw size={16} /> Refresh QC Records
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {[
+                  { label: "Total QC Records", value: qcRecords.length, style: "bg-slate-100 text-slate-800" },
+                  { label: "Under Review", value: qcRecords.filter((r) => r.qc_status === "UNDER_REVIEW").length, style: "bg-amber-100 text-amber-700" },
+                  { label: "Approved", value: qcRecords.filter((r) => r.qc_status === "APPROVED").length, style: "bg-green-100 text-green-700" },
+                  { label: "Rejected", value: qcRecords.filter((r) => r.qc_status === "REJECTED").length, style: "bg-red-100 text-red-700" },
+                ].map((item) => (
+                  <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <h3 className="text-3xl font-bold">{loading ? "..." : item.value}</h3>
+                      <span className={`px-3 py-2 rounded-lg text-xs font-bold ${item.style}`}>{item.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-slate-100">
+                  <h3 className="text-lg font-bold">Milk Quality Test Records</h3>
+                  <p className="text-sm text-slate-500 mt-1">Measurements and statuses returned by the DairySync QC API.</p>
+                </div>
+                {loading ? (
+                  <div className="p-10 text-center text-slate-500">Loading QC records...</div>
+                ) : qcRecords.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <ClipboardCheck size={35} className="mx-auto text-slate-300 mb-3" />
+                    <h3 className="font-semibold">No QC records found</h3>
+                    <p className="text-sm text-slate-500 mt-1">No quality records are currently available in the database.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">QC ID</th>
+                          <th className="px-5 py-4">Batch ID</th>
+                          <th className="px-5 py-4">Fat %</th>
+                          <th className="px-5 py-4">SNF %</th>
+                          <th className="px-5 py-4">Acidity</th>
+                          <th className="px-5 py-4">Inspector ID</th>
+                          <th className="px-5 py-4">QC Status</th>
+                          <th className="px-5 py-4">Sample Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {qcRecords.map((record) => (
+                          <tr key={record.id} className="border-t border-slate-100 hover:bg-slate-50">
+                            <td className="px-5 py-4 font-semibold">#{record.id}</td>
+                            <td className="px-5 py-4">#{record.batch_id}</td>
+                            <td className="px-5 py-4">{record.fat_percent ?? "—"}</td>
+                            <td className="px-5 py-4">{record.snf_percent ?? "—"}</td>
+                            <td className="px-5 py-4">{record.acidity ?? "—"}</td>
+                            <td className="px-5 py-4">{record.inspector_id ?? "Not assigned"}</td>
+                            <td className="px-5 py-4">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.qc_status === "APPROVED" ? "bg-green-100 text-green-700" : record.qc_status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                {record.qc_status || "UNKNOWN"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">{record.sample_time ? new Date(record.sample_time).toLocaleString() : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {qcRecords.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <h3 className="font-bold text-lg">QC Notes</h3>
+                  {qcRecords.map((record) => (
+                    <div key={record.id} className="bg-white border border-slate-200 rounded-xl p-5">
+                      <p className="font-semibold mb-2">QC Record #{record.id} — Batch #{record.batch_id}</p>
+                      <p className="text-sm text-slate-600">{record.notes || "No notes provided."}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900"><strong>QC verification notice:</strong> Displayed measurements are recorded data, not an automatic safety certification. Final quality decisions must be made by authorized QC personnel.</p>
               </div>
             </>
           ) : active === "Dashboard" ? (
