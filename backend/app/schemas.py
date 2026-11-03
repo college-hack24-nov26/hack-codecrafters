@@ -122,3 +122,40 @@ class QCResponse(BaseModel):
     acidity: float | None
     qc_status: str
     notes: str | None
+# ==============================
+# DECISION SUPPORT SCHEMAS
+# ==============================
+
+class DecisionCreate(BaseModel):
+    batch_id: int
+    incident_id: int | None = None
+    recommended_action: str = Field(min_length=2, max_length=40)
+    explanation: str = Field(min_length=5)
+    evidence_summary: dict | None = None
+
+
+class DecisionReview(BaseModel):
+    final_action: str | None = Field(default=None, max_length=40)
+    approval_status: str = Field(min_length=2, max_length=40)
+    reviewed_by: int | None = None
+    approved_by: int | None = None
+    reason_for_override: str | None = None
+
+
+class DecisionResponse(BaseModel):
+    id: int
+    batch_id: int
+    incident_id: int | None
+    recommended_action: str
+    final_action: str | None
+    explanation: str
+    evidence_summary: dict | None
+    approval_status: str
+    recommended_at: datetime
+    reviewed_by: int | None
+    approved_by: int | None
+    approved_at: datetime | None
+    reason_for_override: str | None
+
+    model_config = ConfigDict(from_attributes=True)
+
