@@ -22,6 +22,7 @@ export async function apiRequest(endpoint, options = {}) {
 }
 
 export const api = {
+  // Batches
   getBatches: () => apiRequest("/batches/"),
 
   createBatch: (batchData) =>
@@ -30,9 +31,36 @@ export const api = {
       body: JSON.stringify(batchData),
     }),
 
+  // Incidents
   getIncidents: () => apiRequest("/incidents/"),
+
+  // Alerts
   getAlerts: () => apiRequest("/alerts/"),
+
+  // Facilities
   getFacilities: () => apiRequest("/facilities/"),
+
+  getAvailableFacilities: () =>
+    apiRequest("/facilities/available"),
+
+  // Decisions
   getDecisions: () => apiRequest("/decisions/"),
+
+  // QC Records
   getQCRecords: () => apiRequest("/qc-records/"),
+
+  // Diversions
+  getDiversions: () => apiRequest("/diversions/"),
+
+  createDiversion: (diversionData) =>
+    apiRequest("/diversions/", {
+      method: "POST",
+      body: JSON.stringify(diversionData),
+    }),
+
+  reviewDiversion: (diversionId, reviewData) =>
+    apiRequest(`/diversions/${diversionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(reviewData),
+    }),
 };

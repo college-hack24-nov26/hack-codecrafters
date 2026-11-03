@@ -37,6 +37,7 @@ function App() {
   const [qcRecords, setQCRecords] = useState([]);
   const [decisions, setDecisions] = useState([]);
   const [facilities, setFacilities] = useState([]);
+  const [diversions, setDiversions] = useState([]);
   const [alerts, setAlerts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -53,13 +54,14 @@ function App() {
     setError("");
 
     try {
-      const [batchData, incidentData, alertData, qcData, decisionData, facilityData] = await Promise.all([
+      const [batchData, incidentData, alertData, qcData, decisionData, facilityData, diversionData] = await Promise.all([
         api.getBatches(),
         api.getIncidents(),
         api.getAlerts(),
         api.getQCRecords(),
         api.getDecisions(),
         api.getFacilities(),
+        api.getDiversions(),
       ]);
 
       setBatches(Array.isArray(batchData) ? batchData : []);
@@ -68,6 +70,7 @@ function App() {
       setQCRecords(Array.isArray(qcData) ? qcData : []);
       setDecisions(Array.isArray(decisionData) ? decisionData : []);
       setFacilities(Array.isArray(facilityData) ? facilityData : []);
+      setDiversions(Array.isArray(diversionData) ? diversionData : []);
     } catch (err) {
       setError(err.message || "Unable to load dashboard data");
     } finally {
@@ -927,7 +930,94 @@ function App() {
                 <p className="text-sm text-amber-900"><strong>Location note:</strong> Distance and travel time are estimates stored in the facility records. This page does not perform live GPS-based nearby-centre search or navigation.</p>
               </div>
             </>
+          ) : active === "Diversions" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Diversion Management & Recovery</h2>
+                  <p className="text-slate-500 text-sm mt-1">Review recorded batch diversion requests and their recovery status.</p>
+                </div>
+                <button onClick={loadDashboard} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2">
+                  <RefreshCw size={16} /> Refresh Diversions
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {[
+                  { label: "Total Diversions", value: diversions.length, style: "bg-slate-100 text-slate-800" },
+                  { label: "Pending", value: diversions.filter((d) => String(d.status).toUpperCase() === "PENDING").length, style: "bg-amber-100 text-amber-700" },
+                  { label: "Confirmed", value: diversions.filter((d) => String(d.status).toUpperCase() === "CONFIRMED").length, style: "bg-green-100 text-green-700" },
+                  { label: "Rejected", value: diversions.filter((d) => String(d.status).toUpperCase() === "REJECTED").length, style: "bg-red-100 text-red-700" },
+                ].map((item) => (
+                  <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <div className="flex items-center justify-between mt-3 gap-2">
+                      <h3 className="text-3xl font-bold">{loading ? "..." : item.value}</h3>
+                      <span className={`px-3 py-2 rounded-lg text-xs font-bold ${item.style}`}>{item.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {loading ? (
+                <div className="bg-white rounded-2xl p-10 text-center text-slate-500">Loading diversion records...</div>
+              ) : diversions.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+                  <RefreshCw size={36} className="mx-auto text-slate-300 mb-3" />
+                  <h3 className="font-semibold">No diversion records found</h3>
+                  <p className="text-sm text-slate-500 mt-1">No diversion records are currently available in the database.</p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {diversions.map((diversion) => {
+                    const batch = batches.find((item) => item.id === diversion.batch_id);
+                    const source = facilities.find((item) => item.id === diversion.source_facility_id);
+                    const destination = facilities.find((item) => item.id === diversion.destination_facility_id);
+                    const status = String(diversion.status || "UNKNOWN").toUpperCase();
+                    const statusClass = status === "CONFIRMED" || status === "APPROVED" ? "bg-green-100 text-green-700" : status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700";
+                    return (
+                      <div key={diversion.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <div className="flex flex-wrap justify-between items-start gap-3">
+                          <div>
+                            <h3 className="text-lg font-bold">Diversion #{diversion.id}</h3>
+                            <p className="text-sm text-slate-500 mt-1">Batch #{diversion.batch_id}{batch?.batch_code ? ` · ${batch.batch_code}` : ""}</p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusClass}`}>{status}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                          <div className="bg-slate-50 rounded-xl p-4">
+                            <p className="text-xs text-slate-500 mb-1">Source Facility</p>
+                            <p className="font-semibold">{source?.name || (diversion.source_facility_id == null ? "Not assigned" : `Facility #${diversion.source_facility_id}`)}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-4">
+                            <p className="text-xs text-slate-500 mb-1">Destination Facility</p>
+                            <p className="font-semibold">{destination?.name || (diversion.destination_facility_id == null ? "Not assigned" : `Facility #${diversion.destination_facility_id}`)}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <p className="text-xs text-slate-500 mb-1">Diversion Reason</p>
+                          <p className="text-sm text-slate-700">{diversion.reason || "No reason recorded"}</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 border-t border-slate-100 pt-4 text-sm">
+                          <div><p className="text-xs text-slate-500">Created At</p><p className="mt-1">{diversion.created_at ? new Date(diversion.created_at).toLocaleString() : "—"}</p></div>
+                          <div><p className="text-xs text-slate-500">Confirmed At</p><p className="mt-1">{diversion.confirmed_at ? new Date(diversion.confirmed_at).toLocaleString() : "Not confirmed"}</p></div>
+                          <div><p className="text-xs text-slate-500">Approved By</p><p className="mt-1">{diversion.approved_by ?? "Not assigned"}</p></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900"><strong>Recovery workflow note:</strong> These are diversion records and statuses returned by the backend. A confirmed record does not itself prove that physical transport or rerouting has occurred. Approval identities are displayed only when supplied by the API.</p>
+              </div>
+            </>
           ) : active === "Dashboard" ? (
+
             <>
               <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
                 <div>
