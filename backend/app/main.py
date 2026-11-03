@@ -1,6 +1,7 @@
+
 from fastapi import FastAPI
 
-from .routers import batches
+from .routers import batches, sensor_readings, incidents
 
 
 app = FastAPI(
@@ -9,8 +10,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
 # Register API routers
 app.include_router(batches.router)
+app.include_router(sensor_readings.router)
+app.include_router(incidents.router)
 
 
 @app.get("/")
