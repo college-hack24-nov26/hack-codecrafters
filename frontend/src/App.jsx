@@ -35,6 +35,7 @@ function App() {
   const [batches, setBatches] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [qcRecords, setQCRecords] = useState([]);
+  const [decisions, setDecisions] = useState([]);
   const [alerts, setAlerts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -51,17 +52,19 @@ function App() {
     setError("");
 
     try {
-      const [batchData, incidentData, alertData, qcData] = await Promise.all([
+      const [batchData, incidentData, alertData, qcData, decisionData] = await Promise.all([
         api.getBatches(),
         api.getIncidents(),
         api.getAlerts(),
         api.getQCRecords(),
+        api.getDecisions(),
       ]);
 
       setBatches(Array.isArray(batchData) ? batchData : []);
       setIncidents(Array.isArray(incidentData) ? incidentData : []);
       setAlerts(Array.isArray(alertData) ? alertData : []);
       setQCRecords(Array.isArray(qcData) ? qcData : []);
+      setDecisions(Array.isArray(decisionData) ? decisionData : []);
     } catch (err) {
       setError(err.message || "Unable to load dashboard data");
     } finally {
@@ -689,6 +692,141 @@ function App() {
 
               <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <p className="text-sm text-amber-900"><strong>QC verification notice:</strong> Displayed measurements are recorded data, not an automatic safety certification. Final quality decisions must be made by authorized QC personnel.</p>
+              </div>
+            </>
+          ) : active === "Decisions" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Decision Management</h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Review recorded recommendations, evidence and approval status.
+                  </p>
+                </div>
+                <button
+                  onClick={loadDashboard}
+                  disabled={loading}
+                  className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2"
+                >
+                  <RefreshCw size={16} /> Refresh Decisions
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {[
+                  { label: "Total Decisions", value: decisions.length, style: "bg-slate-100 text-slate-800" },
+                  { label: "Pending", value: decisions.filter((d) => d.approval_status === "PENDING").length, style: "bg-amber-100 text-amber-700" },
+                  { label: "Approved", value: decisions.filter((d) => d.approval_status === "APPROVED").length, style: "bg-green-100 text-green-700" },
+                  { label: "Rejected", value: decisions.filter((d) => d.approval_status === "REJECTED").length, style: "bg-red-100 text-red-700" },
+                ].map((item) => (
+                  <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <h3 className="text-3xl font-bold">{loading ? "..." : item.value}</h3>
+                      <span className={`px-3 py-2 rounded-lg text-xs font-bold ${item.style}`}>{item.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-slate-100">
+                  <h3 className="text-lg font-bold">Decision Records</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Recommendations and review information returned by the DairySync Decision API.
+                  </p>
+                </div>
+
+                {loading ? (
+                  <div className="p-10 text-center text-slate-500">Loading decisions...</div>
+                ) : decisions.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <GitBranch size={35} className="mx-auto text-slate-300 mb-3" />
+                    <h3 className="font-semibold">No decision records found</h3>
+                    <p className="text-sm text-slate-500 mt-1">No decisions are currently available in the database.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">Decision ID</th>
+                          <th className="px-5 py-4">Batch ID</th>
+                          <th className="px-5 py-4">Incident ID</th>
+                          <th className="px-5 py-4">Recommended Action</th>
+                          <th className="px-5 py-4">Final Action</th>
+                          <th className="px-5 py-4">Approval Status</th>
+                          <th className="px-5 py-4">Recommended At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {decisions.map((decision) => (
+                          <tr key={decision.id} className="border-t border-slate-100 hover:bg-slate-50">
+                            <td className="px-5 py-4 font-semibold">#{decision.id}</td>
+                            <td className="px-5 py-4">#{decision.batch_id}</td>
+                            <td className="px-5 py-4">{decision.incident_id == null ? "—" : `#${decision.incident_id}`}</td>
+                            <td className="px-5 py-4 font-medium">{decision.recommended_action || "—"}</td>
+                            <td className="px-5 py-4">{decision.final_action || "Not set"}</td>
+                            <td className="px-5 py-4">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                decision.approval_status === "APPROVED"
+                                  ? "bg-green-100 text-green-700"
+                                  : decision.approval_status === "REJECTED"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>
+                                {decision.approval_status || "UNKNOWN"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              {decision.recommended_at ? new Date(decision.recommended_at).toLocaleString() : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <h3 className="font-bold text-lg">Decision Evidence & Explanation</h3>
+                {decisions.map((decision) => (
+                  <div key={decision.id} className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <div className="flex flex-wrap justify-between gap-2 mb-3">
+                      <h4 className="font-semibold">Decision #{decision.id} — Batch #{decision.batch_id}</h4>
+                      <span className="text-xs text-slate-500">Incident {decision.incident_id == null ? "not linked" : `#${decision.incident_id}`}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 mb-4">{decision.explanation || "No explanation provided."}</p>
+
+                    {decision.evidence_summary && (
+                      <div className="rounded-xl bg-slate-50 p-4">
+                        <p className="text-sm font-semibold mb-3">Evidence Summary</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {Object.entries(decision.evidence_summary).map(([key, value]) => (
+                            <div key={key}>
+                              <p className="text-xs text-slate-500">{key.replaceAll("_", " ")}</p>
+                              <p className="text-sm font-medium break-words">{value == null ? "—" : String(value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4 text-sm">
+                      <div><span className="text-slate-500">Reviewed by:</span> {decision.reviewed_by ?? "Not assigned"}</div>
+                      <div><span className="text-slate-500">Approved by:</span> {decision.approved_by ?? "Not assigned"}</div>
+                      <div><span className="text-slate-500">Approved at:</span> {decision.approved_at ? new Date(decision.approved_at).toLocaleString() : "—"}</div>
+                      <div><span className="text-slate-500">Override reason:</span> {decision.reason_for_override || "None recorded"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900">
+                  <strong>Approval workflow notice:</strong> This page displays saved decision and approval records. Approval identities are shown only when returned by the API. Final operational and milk-quality decisions remain with authorized personnel.
+                </p>
               </div>
             </>
           ) : active === "Dashboard" ? (
