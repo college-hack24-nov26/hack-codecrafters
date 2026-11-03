@@ -157,5 +157,68 @@ class DecisionResponse(BaseModel):
     approved_at: datetime | None
     reason_for_override: str | None
 
+    model_config = ConfigDict(from_attributes=True)# ==============================
+# FACILITY MANAGEMENT SCHEMAS
+# ==============================
+
+class FacilityCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=150)
+    facility_type: str = Field(min_length=2, max_length=80)
+    processing_compatibility: list | None = None
+    total_capacity_liters: float = Field(gt=0)
+    available_capacity_liters: float = Field(ge=0)
+    estimated_distance_km: float | None = Field(default=None, ge=0)
+    estimated_travel_minutes: int | None = Field(default=None, ge=0)
+    is_available: bool = True
+
+
+class FacilityResponse(BaseModel):
+    id: int
+    name: str
+    facility_type: str
+    processing_compatibility: list | None
+    total_capacity_liters: float
+    available_capacity_liters: float
+    estimated_distance_km: float | None
+    estimated_travel_minutes: int | None
+    is_available: bool
+
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================
+# DIVERSION MANAGEMENT SCHEMAS
+# ==============================
+
+class DiversionCreate(BaseModel):
+    batch_id: int
+    source_facility_id: int | None = None
+    destination_facility_id: int | None = None
+    reason: str = Field(min_length=5)
+
+
+class DiversionReview(BaseModel):
+    status: str = Field(min_length=2, max_length=40)
+    approved_by: int | None = None
+
+
+class DiversionResponse(BaseModel):
+    id: int
+    batch_id: int
+    source_facility_id: int | None
+    destination_facility_id: int | None
+    reason: str
+    approved_by: int | None
+    status: str
+    created_at: datetime
+    confirmed_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================
+# FACILITY MANAGEMENT SCHEMAS
+# ==============================
 

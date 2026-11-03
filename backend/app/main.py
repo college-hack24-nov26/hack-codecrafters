@@ -1,7 +1,16 @@
 from fastapi import FastAPI
 
-from .routers import batches, sensor_readings, incidents, qc_records, decisions
-
+from .routers import (
+    batches,
+    sensor_readings,
+    incidents,
+    qc_records,
+    decisions,
+    facilities,
+    diversions,
+    alerts,
+    audit_logs
+)
 
 app = FastAPI(
     title="DairySync API",
@@ -9,13 +18,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
-# Register API routers
+# Register all routers
 app.include_router(batches.router)
 app.include_router(sensor_readings.router)
 app.include_router(incidents.router)
 app.include_router(qc_records.router)
 app.include_router(decisions.router)
+app.include_router(facilities.router)
+app.include_router(diversions.router)
+app.include_router(alerts.router)
+app.include_router(audit_logs.router)
 
 
 @app.get("/")
