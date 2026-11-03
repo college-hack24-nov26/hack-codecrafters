@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,13 +11,13 @@ from .routers import (
     facilities,
     diversions,
     alerts,
-    audit_logs
+    audit_logs,
 )
 
 app = FastAPI(
     title="DairySync API",
     description="Cold-Chain Incident-to-Decision Support Platform",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS Configuration
@@ -25,6 +26,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -48,7 +51,7 @@ def home():
     return {
         "message": "Welcome to DairySync API",
         "project": "DairySync",
-        "status": "running"
+        "status": "running",
     }
 
 
@@ -57,5 +60,5 @@ def health_check():
     return {
         "status": "healthy",
         "application": "DairySync",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
