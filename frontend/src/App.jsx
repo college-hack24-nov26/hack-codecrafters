@@ -36,6 +36,7 @@ function App() {
   const [incidents, setIncidents] = useState([]);
   const [qcRecords, setQCRecords] = useState([]);
   const [decisions, setDecisions] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [alerts, setAlerts] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -52,12 +53,13 @@ function App() {
     setError("");
 
     try {
-      const [batchData, incidentData, alertData, qcData, decisionData] = await Promise.all([
+      const [batchData, incidentData, alertData, qcData, decisionData, facilityData] = await Promise.all([
         api.getBatches(),
         api.getIncidents(),
         api.getAlerts(),
         api.getQCRecords(),
         api.getDecisions(),
+        api.getFacilities(),
       ]);
 
       setBatches(Array.isArray(batchData) ? batchData : []);
@@ -65,6 +67,7 @@ function App() {
       setAlerts(Array.isArray(alertData) ? alertData : []);
       setQCRecords(Array.isArray(qcData) ? qcData : []);
       setDecisions(Array.isArray(decisionData) ? decisionData : []);
+      setFacilities(Array.isArray(facilityData) ? facilityData : []);
     } catch (err) {
       setError(err.message || "Unable to load dashboard data");
     } finally {
@@ -827,6 +830,101 @@ function App() {
                 <p className="text-sm text-amber-900">
                   <strong>Approval workflow notice:</strong> This page displays saved decision and approval records. Approval identities are shown only when returned by the API. Final operational and milk-quality decisions remain with authorized personnel.
                 </p>
+              </div>
+            </>
+          ) : active === "Facilities" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Facilities & Nearby Centres</h2>
+                  <p className="text-slate-500 text-sm mt-1">Review registered facilities, availability and recorded distance estimates.</p>
+                </div>
+                <button onClick={loadDashboard} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2">
+                  <RefreshCw size={16} /> Refresh Facilities
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {[
+                  { label: "Total Facilities", value: facilities.length, style: "bg-slate-100 text-slate-800" },
+                  { label: "Available", value: facilities.filter((f) => f.is_available).length, style: "bg-green-100 text-green-700" },
+                  { label: "Unavailable", value: facilities.filter((f) => !f.is_available).length, style: "bg-red-100 text-red-700" },
+                  { label: "Available Capacity", value: `${facilities.reduce((sum, f) => sum + (Number(f.available_capacity_liters) || 0), 0).toLocaleString()} L`, style: "bg-cyan-100 text-cyan-700" },
+                ].map((item) => (
+                  <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <div className="flex items-center justify-between mt-3 gap-2">
+                      <h3 className="text-2xl font-bold">{loading ? "..." : item.value}</h3>
+                      <span className={`px-3 py-2 rounded-lg text-xs font-bold ${item.style}`}>{item.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {loading ? (
+                <div className="bg-white rounded-2xl p-10 text-center text-slate-500">Loading facilities...</div>
+              ) : facilities.length === 0 ? (
+                <div className="bg-white border rounded-2xl p-10 text-center">
+                  <Building2 size={36} className="mx-auto text-slate-300 mb-3" />
+                  <h3 className="font-semibold">No facilities found</h3>
+                  <p className="text-sm text-slate-500 mt-1">No facility records are currently available in the database.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                  {facilities.map((facility) => {
+                    const total = Number(facility.total_capacity_liters) || 0;
+                    const available = Number(facility.available_capacity_liters) || 0;
+                    const usedPercent = total > 0 ? Math.min(100, Math.max(0, ((total - available) / total) * 100)) : 0;
+                    return (
+                      <div key={facility.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <div className="flex flex-wrap justify-between items-start gap-3">
+                          <div className="flex gap-3">
+                            <div className="bg-cyan-50 text-cyan-700 p-3 rounded-xl h-fit"><Building2 size={23} /></div>
+                            <div>
+                              <h3 className="font-bold text-lg">{facility.name}</h3>
+                              <p className="text-xs text-slate-500 mt-1">Facility #{facility.id} · {facility.facility_type?.replaceAll("_", " ") || "Type not specified"}</p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${facility.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{facility.is_available ? "AVAILABLE" : "UNAVAILABLE"}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                          <div className="bg-slate-50 rounded-xl p-4">
+                            <p className="text-xs text-slate-500">Total Capacity</p>
+                            <p className="text-xl font-bold mt-1">{total.toLocaleString()} L</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-4">
+                            <p className="text-xs text-slate-500">Available Capacity</p>
+                            <p className="text-xl font-bold mt-1">{available.toLocaleString()} L</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <div className="flex justify-between text-xs text-slate-500 mb-2"><span>Capacity utilization</span><span>{usedPercent.toFixed(0)}%</span></div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${usedPercent}%` }} /></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-5 text-sm">
+                          <div className="flex items-center gap-2"><Truck size={17} className="text-cyan-700" /><span>{facility.estimated_distance_km == null ? "Distance not recorded" : `${facility.estimated_distance_km} km estimated`}</span></div>
+                          <div className="flex items-center gap-2"><Clock size={17} className="text-cyan-700" /><span>{facility.estimated_travel_minutes == null ? "Travel time not recorded" : `${facility.estimated_travel_minutes} min estimated`}</span></div>
+                        </div>
+
+                        <div className="mt-5 border-t border-slate-100 pt-4">
+                          <p className="text-xs text-slate-500 mb-2">Processing Compatibility</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(Array.isArray(facility.processing_compatibility) ? facility.processing_compatibility : []).length > 0 ? facility.processing_compatibility.map((item) => (
+                              <span key={item} className="bg-cyan-50 text-cyan-800 px-3 py-1 rounded-full text-xs font-medium">{String(item).replaceAll("_", " ")}</span>
+                            )) : <span className="text-sm text-slate-400">Not specified</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900"><strong>Location note:</strong> Distance and travel time are estimates stored in the facility records. This page does not perform live GPS-based nearby-centre search or navigation.</p>
               </div>
             </>
           ) : active === "Dashboard" ? (
