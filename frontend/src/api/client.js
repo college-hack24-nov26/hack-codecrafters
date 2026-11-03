@@ -1,4 +1,4 @@
-
+﻿
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 export async function apiRequest(endpoint, options = {}) {
@@ -41,6 +41,11 @@ export const api = {
   // Alerts
   getAlerts: () => apiRequest("/alerts/"),
 
+  // Mark alert as read
+  markAlertRead: (alertId) =>
+    apiRequest(`/alerts/${alertId}/read`, {
+      method: "PATCH",
+    }),
   // Facilities
   getFacilities: () => apiRequest("/facilities/"),
 
@@ -68,3 +73,4 @@ export const api = {
       body: JSON.stringify(reviewData),
     }),
 };
+

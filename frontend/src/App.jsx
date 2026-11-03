@@ -7,9 +7,11 @@ import {
 } from "lucide-react";
 import { api } from "./api/client";
 import SensorMonitoring from "./SensorMonitoring";
+import AlertsPage from "./AlertsPage";
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard },
+  { name: "Alerts", icon: Bell },
   { name: "Batches", icon: Milk },
   { name: "Sensor Monitoring", icon: Thermometer },
   { name: "Incidents", icon: AlertTriangle },
@@ -436,7 +438,8 @@ function App() {
                 </div>
               </div>
             </>
-          ) : active === "Sensor Monitoring" ? (
+          ) : active === "Alerts" ? (
+            <AlertsPage />          ) : active === "Sensor Monitoring" ? (
             <SensorMonitoring />          ) : active === "Incidents" ? (
             <>
               <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
@@ -1147,3 +1150,4 @@ function App() {
 }
 
 export default App;
+
