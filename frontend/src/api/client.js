@@ -34,6 +34,10 @@ export const api = {
   // Incidents
   getIncidents: () => apiRequest("/incidents/"),
 
+    // Sensor Readings
+  getSensorReadingsByBatch: (batchId) =>
+    apiRequest(`/sensor-readings/batch/${batchId}`),
+  
   // Alerts
   getAlerts: () => apiRequest("/alerts/"),
 

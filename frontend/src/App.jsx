@@ -1,4 +1,4 @@
-
+﻿
 import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Thermometer, AlertTriangle, ClipboardCheck,
@@ -6,6 +6,7 @@ import {
   Activity, Clock, ShieldCheck, Plus, X, Truck, ArrowLeft
 } from "lucide-react";
 import { api } from "./api/client";
+import SensorMonitoring from "./SensorMonitoring";
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard },
@@ -39,6 +40,9 @@ function App() {
   const [facilities, setFacilities] = useState([]);
   const [diversions, setDiversions] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [sensorReadings, setSensorReadings] = useState([]);
+  const [sensorLoading, setSensorLoading] = useState(false);
+  const [sensorError, setSensorError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -432,7 +436,8 @@ function App() {
                 </div>
               </div>
             </>
-          ) : active === "Incidents" ? (
+          ) : active === "Sensor Monitoring" ? (
+            <SensorMonitoring />          ) : active === "Incidents" ? (
             <>
               <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
                 <div>
@@ -538,7 +543,7 @@ function App() {
                             </td>
                             <td className="px-5 py-4">#{incident.batch_id}</td>
                             <td className="px-5 py-4 font-medium">
-                              {incident.incident_type || "—"}
+                              {incident.incident_type || "â€”"}
                             </td>
                             <td className="px-5 py-4">
                               <span
@@ -554,17 +559,17 @@ function App() {
                               </span>
                             </td>
                             <td className="px-5 py-4">
-                              {incident.status || "—"}
+                              {incident.status || "â€”"}
                             </td>
                             <td className="px-5 py-4">
                               {incident.started_at
                                 ? new Date(incident.started_at).toLocaleString()
-                                : "—"}
+                                : "â€”"}
                             </td>
                             <td className="px-5 py-4">
                               {incident.duration_minutes != null
                                 ? `${incident.duration_minutes} min`
-                                : "—"}
+                                : "â€”"}
                             </td>
                           </tr>
                         ))}
@@ -583,7 +588,7 @@ function App() {
                   >
                     <div className="flex flex-wrap justify-between gap-2 mb-2">
                       <p className="font-semibold">
-                        Incident #{incident.id} — Batch #{incident.batch_id}
+                        Incident #{incident.id} â€” Batch #{incident.batch_id}
                       </p>
                       <span className="text-xs text-slate-500">
                         {incident.status}
@@ -666,16 +671,16 @@ function App() {
                           <tr key={record.id} className="border-t border-slate-100 hover:bg-slate-50">
                             <td className="px-5 py-4 font-semibold">#{record.id}</td>
                             <td className="px-5 py-4">#{record.batch_id}</td>
-                            <td className="px-5 py-4">{record.fat_percent ?? "—"}</td>
-                            <td className="px-5 py-4">{record.snf_percent ?? "—"}</td>
-                            <td className="px-5 py-4">{record.acidity ?? "—"}</td>
+                            <td className="px-5 py-4">{record.fat_percent ?? "â€”"}</td>
+                            <td className="px-5 py-4">{record.snf_percent ?? "â€”"}</td>
+                            <td className="px-5 py-4">{record.acidity ?? "â€”"}</td>
                             <td className="px-5 py-4">{record.inspector_id ?? "Not assigned"}</td>
                             <td className="px-5 py-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.qc_status === "APPROVED" ? "bg-green-100 text-green-700" : record.qc_status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
                                 {record.qc_status || "UNKNOWN"}
                               </span>
                             </td>
-                            <td className="px-5 py-4">{record.sample_time ? new Date(record.sample_time).toLocaleString() : "—"}</td>
+                            <td className="px-5 py-4">{record.sample_time ? new Date(record.sample_time).toLocaleString() : "â€”"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -689,7 +694,7 @@ function App() {
                   <h3 className="font-bold text-lg">QC Notes</h3>
                   {qcRecords.map((record) => (
                     <div key={record.id} className="bg-white border border-slate-200 rounded-xl p-5">
-                      <p className="font-semibold mb-2">QC Record #{record.id} — Batch #{record.batch_id}</p>
+                      <p className="font-semibold mb-2">QC Record #{record.id} â€” Batch #{record.batch_id}</p>
                       <p className="text-sm text-slate-600">{record.notes || "No notes provided."}</p>
                     </div>
                   ))}
@@ -770,8 +775,8 @@ function App() {
                           <tr key={decision.id} className="border-t border-slate-100 hover:bg-slate-50">
                             <td className="px-5 py-4 font-semibold">#{decision.id}</td>
                             <td className="px-5 py-4">#{decision.batch_id}</td>
-                            <td className="px-5 py-4">{decision.incident_id == null ? "—" : `#${decision.incident_id}`}</td>
-                            <td className="px-5 py-4 font-medium">{decision.recommended_action || "—"}</td>
+                            <td className="px-5 py-4">{decision.incident_id == null ? "â€”" : `#${decision.incident_id}`}</td>
+                            <td className="px-5 py-4 font-medium">{decision.recommended_action || "â€”"}</td>
                             <td className="px-5 py-4">{decision.final_action || "Not set"}</td>
                             <td className="px-5 py-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -785,7 +790,7 @@ function App() {
                               </span>
                             </td>
                             <td className="px-5 py-4">
-                              {decision.recommended_at ? new Date(decision.recommended_at).toLocaleString() : "—"}
+                              {decision.recommended_at ? new Date(decision.recommended_at).toLocaleString() : "â€”"}
                             </td>
                           </tr>
                         ))}
@@ -800,7 +805,7 @@ function App() {
                 {decisions.map((decision) => (
                   <div key={decision.id} className="bg-white border border-slate-200 rounded-2xl p-5">
                     <div className="flex flex-wrap justify-between gap-2 mb-3">
-                      <h4 className="font-semibold">Decision #{decision.id} — Batch #{decision.batch_id}</h4>
+                      <h4 className="font-semibold">Decision #{decision.id} â€” Batch #{decision.batch_id}</h4>
                       <span className="text-xs text-slate-500">Incident {decision.incident_id == null ? "not linked" : `#${decision.incident_id}`}</span>
                     </div>
                     <p className="text-sm text-slate-700 mb-4">{decision.explanation || "No explanation provided."}</p>
@@ -812,7 +817,7 @@ function App() {
                           {Object.entries(decision.evidence_summary).map(([key, value]) => (
                             <div key={key}>
                               <p className="text-xs text-slate-500">{key.replaceAll("_", " ")}</p>
-                              <p className="text-sm font-medium break-words">{value == null ? "—" : String(value)}</p>
+                              <p className="text-sm font-medium break-words">{value == null ? "â€”" : String(value)}</p>
                             </div>
                           ))}
                         </div>
@@ -822,7 +827,7 @@ function App() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4 text-sm">
                       <div><span className="text-slate-500">Reviewed by:</span> {decision.reviewed_by ?? "Not assigned"}</div>
                       <div><span className="text-slate-500">Approved by:</span> {decision.approved_by ?? "Not assigned"}</div>
-                      <div><span className="text-slate-500">Approved at:</span> {decision.approved_at ? new Date(decision.approved_at).toLocaleString() : "—"}</div>
+                      <div><span className="text-slate-500">Approved at:</span> {decision.approved_at ? new Date(decision.approved_at).toLocaleString() : "â€”"}</div>
                       <div><span className="text-slate-500">Override reason:</span> {decision.reason_for_override || "None recorded"}</div>
                     </div>
                   </div>
@@ -885,7 +890,7 @@ function App() {
                             <div className="bg-cyan-50 text-cyan-700 p-3 rounded-xl h-fit"><Building2 size={23} /></div>
                             <div>
                               <h3 className="font-bold text-lg">{facility.name}</h3>
-                              <p className="text-xs text-slate-500 mt-1">Facility #{facility.id} · {facility.facility_type?.replaceAll("_", " ") || "Type not specified"}</p>
+                              <p className="text-xs text-slate-500 mt-1">Facility #{facility.id} Â· {facility.facility_type?.replaceAll("_", " ") || "Type not specified"}</p>
                             </div>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${facility.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{facility.is_available ? "AVAILABLE" : "UNAVAILABLE"}</span>
@@ -980,7 +985,7 @@ function App() {
                         <div className="flex flex-wrap justify-between items-start gap-3">
                           <div>
                             <h3 className="text-lg font-bold">Diversion #{diversion.id}</h3>
-                            <p className="text-sm text-slate-500 mt-1">Batch #{diversion.batch_id}{batch?.batch_code ? ` · ${batch.batch_code}` : ""}</p>
+                            <p className="text-sm text-slate-500 mt-1">Batch #{diversion.batch_id}{batch?.batch_code ? ` Â· ${batch.batch_code}` : ""}</p>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusClass}`}>{status}</span>
                         </div>
@@ -1002,7 +1007,7 @@ function App() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 border-t border-slate-100 pt-4 text-sm">
-                          <div><p className="text-xs text-slate-500">Created At</p><p className="mt-1">{diversion.created_at ? new Date(diversion.created_at).toLocaleString() : "—"}</p></div>
+                          <div><p className="text-xs text-slate-500">Created At</p><p className="mt-1">{diversion.created_at ? new Date(diversion.created_at).toLocaleString() : "â€”"}</p></div>
                           <div><p className="text-xs text-slate-500">Confirmed At</p><p className="mt-1">{diversion.confirmed_at ? new Date(diversion.confirmed_at).toLocaleString() : "Not confirmed"}</p></div>
                           <div><p className="text-xs text-slate-500">Approved By</p><p className="mt-1">{diversion.approved_by ?? "Not assigned"}</p></div>
                         </div>
@@ -1086,7 +1091,7 @@ function App() {
                     <p className="text-sm text-slate-500">Records fetched from DairySync backend</p>
                   </div>
                   <button onClick={() => setActive("Batches")} className="text-cyan-700 text-sm font-semibold">
-                    View All Batches →
+                    View All Batches â†’
                   </button>
                 </div>
                 <div className="overflow-x-auto">
@@ -1118,7 +1123,7 @@ function App() {
               <div className="mt-6 bg-cyan-50 border border-cyan-100 rounded-xl p-4 flex gap-3">
                 <Clock className="text-cyan-700 shrink-0" />
                 <p className="text-sm text-cyan-900">
-                  <strong>Workflow:</strong> Detect → Investigate → Decide → Recover.
+                  <strong>Workflow:</strong> Detect â†’ Investigate â†’ Decide â†’ Recover.
                   DairySync provides decision support. It does not independently certify milk as safe.
                 </p>
               </div>
