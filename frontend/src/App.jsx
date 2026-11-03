@@ -1,0 +1,547 @@
+
+import { useState, useEffect } from "react";
+import {
+  LayoutDashboard, Thermometer, AlertTriangle, ClipboardCheck,
+  GitBranch, Building2, RefreshCw, Bell, Search, Menu, Milk,
+  Activity, Clock, ShieldCheck, Plus, X, Truck, ArrowLeft
+} from "lucide-react";
+import { api } from "./api/client";
+
+const menuItems = [
+  { name: "Dashboard", icon: LayoutDashboard },
+  { name: "Batches", icon: Milk },
+  { name: "Sensor Monitoring", icon: Thermometer },
+  { name: "Incidents", icon: AlertTriangle },
+  { name: "QC Records", icon: ClipboardCheck },
+  { name: "Decisions", icon: GitBranch },
+  { name: "Facilities", icon: Building2 },
+  { name: "Diversions", icon: RefreshCw },
+];
+
+const emptyForm = {
+  batch_code: "",
+  supplier: "",
+  quantity_liters: "",
+  origin: "",
+  destination: "",
+  route: "",
+  expected_arrival_at: "",
+};
+
+function App() {
+  const [active, setActive] = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [batches, setBatches] = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [batchData, incidentData, alertData] = await Promise.all([
+        api.getBatches(),
+        api.getIncidents(),
+        api.getAlerts(),
+      ]);
+
+      setBatches(Array.isArray(batchData) ? batchData : []);
+      setIncidents(Array.isArray(incidentData) ? incidentData : []);
+      setAlerts(Array.isArray(alertData) ? alertData : []);
+    } catch (err) {
+      setError(err.message || "Unable to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  async function handleCreateBatch(event) {
+    event.preventDefault();
+    setFormError("");
+    setSuccessMessage("");
+
+    if (
+      !form.batch_code.trim() ||
+      !form.supplier.trim() ||
+      !form.quantity_liters ||
+      !form.origin.trim() ||
+      !form.destination.trim() ||
+      !form.route.trim() ||
+      !form.expected_arrival_at
+    ) {
+      setFormError("Please fill in all fields.");
+      return;
+    }
+
+    const quantity = Number(form.quantity_liters);
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setFormError("Quantity must be greater than zero.");
+      return;
+    }
+
+    const arrivalDate = new Date(form.expected_arrival_at);
+
+    if (Number.isNaN(arrivalDate.getTime())) {
+      setFormError("Please enter a valid expected arrival date and time.");
+      return;
+    }
+
+    const payload = {
+      batch_code: form.batch_code.trim(),
+      supplier: form.supplier.trim(),
+      quantity_liters: quantity,
+      origin: form.origin.trim(),
+      destination: form.destination.trim(),
+      route: form.route.trim(),
+      expected_arrival_at: arrivalDate.toISOString(),
+    };
+
+    try {
+      setSaving(true);
+
+      await api.createBatch(payload);
+
+      setForm(emptyForm);
+      setShowBatchForm(false);
+      setSuccessMessage("New batch created successfully!");
+
+      await loadDashboard();
+      setActive("Batches");
+    } catch (err) {
+      setFormError(err.message || "Unable to create batch.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const highRisk = incidents.filter(
+    (item) => item.severity === "HIGH"
+  ).length;
+
+  const mediumRisk = incidents.filter(
+    (item) => item.severity === "MEDIUM"
+  ).length;
+
+  const lowRisk = incidents.filter(
+    (item) => item.severity === "LOW"
+  ).length;
+
+  const openIncidents = incidents.filter(
+    (item) => !["RESOLVED", "CLOSED"].includes(item.status)
+  ).length;
+
+  const pendingQC = batches.filter(
+    (item) => item.status === "UNDER_REVIEW"
+  ).length;
+
+  const stats = [
+    { label: "Total Batches", value: batches.length, note: "Database records", icon: Milk },
+    { label: "Active Monitoring", value: batches.filter((b) => b.status === "IN_TRANSIT").length, note: "Currently in transit", icon: Activity },
+    { label: "Open Incidents", value: openIncidents, note: "Require investigation", icon: AlertTriangle },
+    { label: "Pending QC", value: pendingQC, note: "Based on batch status", icon: ClipboardCheck },
+  ];
+
+  const inputClass =
+    "w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 text-sm";
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex">
+      <aside className={`${sidebarOpen ? "w-64" : "w-20"} bg-slate-950 text-white min-h-screen p-5 transition-all duration-300 shrink-0`}>
+        <div className="flex items-center gap-3 mb-10">
+          <div className="bg-cyan-400 text-slate-950 rounded-xl p-2">
+            <Milk size={25} />
+          </div>
+          {sidebarOpen && (
+            <div>
+              <h1 className="text-xl font-bold">DairySync</h1>
+              <p className="text-xs text-slate-400">Cold Chain Intelligence</p>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs uppercase tracking-widest text-slate-500 mb-4">
+          {sidebarOpen ? "Main Menu" : "Menu"}
+        </p>
+
+        <nav className="space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.name}
+                onClick={() => {
+                  setActive(item.name);
+                  setShowBatchForm(false);
+                  setSuccessMessage("");
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition ${
+                  active === item.name
+                    ? "bg-cyan-400 text-slate-950 font-semibold"
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <Icon size={19} />
+                {sidebarOpen && item.name}
+              </button>
+            );
+          })}
+        </nav>
+
+        {sidebarOpen && (
+          <div className="mt-12 rounded-xl bg-slate-900 p-4">
+            <ShieldCheck className="text-cyan-400 mb-2" />
+            <p className="text-sm font-semibold">Decision Support</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Final quality decisions remain with authorized QC personnel.
+            </p>
+          </div>
+        )}
+      </aside>
+
+      <main className="flex-1 min-w-0">
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu size={22} />
+            </button>
+            <div>
+              <h2 className="text-xl font-bold">{active}</h2>
+              <p className="text-xs text-slate-500">DairySync / {active}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg">
+              <Search size={16} className="text-slate-400" />
+              <input className="bg-transparent outline-none text-sm w-36" placeholder="Search..." />
+            </div>
+            <button className="relative">
+              <Bell size={21} />
+            </button>
+            <div className="bg-cyan-100 text-cyan-800 rounded-full w-9 h-9 flex items-center justify-center font-bold">
+              QC
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6 md:p-8">
+
+          {error && (
+            <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-4 mb-6">
+              API Error: {error}
+              <button onClick={loadDashboard} className="ml-3 underline font-semibold">Retry</button>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="bg-green-50 text-green-700 border border-green-200 rounded-xl p-4 mb-6">
+              {successMessage}
+            </div>
+          )}
+
+          {active === "Batches" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Milk Batch Management</h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Create and monitor milk batches using database records.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowBatchForm(!showBatchForm);
+                    setFormError("");
+                  }}
+                  className="bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-semibold px-5 py-3 rounded-xl flex items-center gap-2"
+                >
+                  {showBatchForm ? <X size={18} /> : <Plus size={18} />}
+                  {showBatchForm ? "Close Form" : "Create New Batch"}
+                </button>
+              </div>
+
+              {showBatchForm && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8 shadow-sm">
+                  <h3 className="text-lg font-bold mb-2">Create New Milk Batch</h3>
+                  <p className="text-sm text-slate-500 mb-6">
+                    Enter the batch details. The record will be saved to the backend database.
+                  </p>
+
+                  <form onSubmit={handleCreateBatch}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <label className="text-sm font-medium">
+                        Batch Code *
+                        <input className={`${inputClass} mt-2`} placeholder="e.g. DS-BATCH-002" value={form.batch_code}
+                          onChange={(e) => setForm({ ...form, batch_code: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium">
+                        Supplier Name *
+                        <input className={`${inputClass} mt-2`} placeholder="Supplier name" value={form.supplier}
+                          onChange={(e) => setForm({ ...form, supplier: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium">
+                        Quantity (Litres) *
+                        <input className={`${inputClass} mt-2`} type="number" min="0.01" step="0.01" placeholder="5000" value={form.quantity_liters}
+                          onChange={(e) => setForm({ ...form, quantity_liters: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium">
+                        Origin / Collection Center *
+                        <input className={`${inputClass} mt-2`} placeholder="Phaltan Collection Center" value={form.origin}
+                          onChange={(e) => setForm({ ...form, origin: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium">
+                        Destination / Processing Plant *
+                        <input className={`${inputClass} mt-2`} placeholder="Pune Processing Plant" value={form.destination}
+                          onChange={(e) => setForm({ ...form, destination: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium">
+                        Route *
+                        <input className={`${inputClass} mt-2`} placeholder="Phaltan - Baramati - Pune" value={form.route}
+                          onChange={(e) => setForm({ ...form, route: e.target.value })} required />
+                      </label>
+
+                      <label className="text-sm font-medium md:col-span-2">
+                        Expected Arrival Date & Time *
+                        <input className={`${inputClass} mt-2`} type="datetime-local" value={form.expected_arrival_at}
+                          onChange={(e) => setForm({ ...form, expected_arrival_at: e.target.value })} required />
+                      </label>
+                    </div>
+
+                    {formError && (
+                      <p className="mt-5 bg-red-50 text-red-700 rounded-lg p-3 text-sm">
+                        {formError}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 mt-6">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="bg-slate-950 text-white px-6 py-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {saving ? "Saving Batch..." : "Save Batch"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBatchForm(false);
+                          setForm(emptyForm);
+                          setFormError("");
+                        }}
+                        className="border border-slate-300 px-6 py-3 rounded-xl font-semibold"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-7">
+                <div className="bg-white border rounded-2xl p-5">
+                  <p className="text-sm text-slate-500">Total Batches</p>
+                  <h3 className="text-3xl font-bold mt-2">{loading ? "..." : batches.length}</h3>
+                </div>
+                <div className="bg-white border rounded-2xl p-5">
+                  <p className="text-sm text-slate-500">In Transit</p>
+                  <h3 className="text-3xl font-bold mt-2">{batches.filter(b => b.status === "IN_TRANSIT").length}</h3>
+                </div>
+                <div className="bg-white border rounded-2xl p-5">
+                  <p className="text-sm text-slate-500">Arrived</p>
+                  <h3 className="text-3xl font-bold mt-2">{batches.filter(b => b.status === "ARRIVED").length}</h3>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="p-6 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg">All Milk Batches</h3>
+                    <p className="text-sm text-slate-500">Live database records</p>
+                  </div>
+                  <button onClick={loadDashboard} className="text-cyan-700 text-sm font-semibold flex items-center gap-2">
+                    <RefreshCw size={16} /> Refresh
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-6 py-4">Batch ID</th>
+                        <th className="px-6 py-4">Supplier</th>
+                        <th className="px-6 py-4">Quantity</th>
+                        <th className="px-6 py-4">Origin</th>
+                        <th className="px-6 py-4">Destination</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading && <tr><td colSpan="7" className="p-6 text-center">Loading batches...</td></tr>}
+                      {!loading && batches.map((batch) => (
+                        <tr key={batch.id} className="border-t border-slate-100">
+                          <td className="px-6 py-4 font-semibold">{batch.batch_code}</td>
+                          <td className="px-6 py-4">{batch.supplier}</td>
+                          <td className="px-6 py-4">{Number(batch.quantity_liters).toLocaleString()} L</td>
+                          <td className="px-6 py-4">{batch.origin}</td>
+                          <td className="px-6 py-4">{batch.destination}</td>
+                          <td className="px-6 py-4">{batch.status}</td>
+                          <td className="px-6 py-4">{batch.risk_level}</td>
+                        </tr>
+                      ))}
+                      {!loading && !error && batches.length === 0 && (
+                        <tr><td colSpan="7" className="p-6 text-center">No batches found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : active === "Dashboard" ? (
+            <>
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-7">
+                <div>
+                  <h2 className="text-2xl font-bold">Cold Chain Overview</h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Monitor batches, investigate incidents and support decisions.
+                  </p>
+                </div>
+                <span className="text-xs bg-green-100 text-green-800 px-3 py-2 rounded-full font-semibold">
+                  LIVE DATABASE CONNECTION
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                {stats.map((stat) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-slate-500">{stat.label}</p>
+                        <div className="bg-cyan-50 text-cyan-700 p-2 rounded-lg"><Icon size={20} /></div>
+                      </div>
+                      <h3 className="text-3xl font-bold mt-4">{loading ? "..." : stat.value}</h3>
+                      <p className="text-xs text-slate-400 mt-2">{stat.note}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+                <div className="xl:col-span-2 bg-white border rounded-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="font-bold text-lg">Temperature Monitoring</h3>
+                      <p className="text-sm text-slate-500">Sensor integration pending</p>
+                    </div>
+                    <Thermometer className="text-cyan-600" />
+                  </div>
+                  <div className="h-44 flex items-center justify-center bg-slate-50 rounded-xl">
+                    <div className="text-center">
+                      <Thermometer size={35} className="mx-auto text-slate-400 mb-2" />
+                      <p className="text-sm text-slate-500">No live sensor chart connected yet</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border rounded-2xl p-6">
+                  <h3 className="font-bold text-lg mb-5">Incident Risk Summary</h3>
+                  {[
+                    { name: "HIGH", count: highRisk, style: "bg-red-100 text-red-700" },
+                    { name: "MEDIUM", count: mediumRisk, style: "bg-amber-100 text-amber-700" },
+                    { name: "LOW", count: lowRisk, style: "bg-green-100 text-green-700" },
+                  ].map((risk) => (
+                    <div key={risk.name} className="flex justify-between items-center mb-5">
+                      <span className="text-sm">{risk.name} Risk</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${risk.style}`}>{loading ? "..." : risk.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white border rounded-2xl overflow-hidden">
+                <div className="p-6 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg">Recent Milk Batches</h3>
+                    <p className="text-sm text-slate-500">Records fetched from DairySync backend</p>
+                  </div>
+                  <button onClick={() => setActive("Batches")} className="text-cyan-700 text-sm font-semibold">
+                    View All Batches →
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-6 py-4">Batch ID</th>
+                        <th className="px-6 py-4">Supplier</th>
+                        <th className="px-6 py-4">Quantity</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batches.map((batch) => (
+                        <tr key={batch.id} className="border-t border-slate-100">
+                          <td className="px-6 py-4 font-semibold">{batch.batch_code}</td>
+                          <td className="px-6 py-4">{batch.supplier}</td>
+                          <td className="px-6 py-4">{Number(batch.quantity_liters).toLocaleString()} L</td>
+                          <td className="px-6 py-4">{batch.status}</td>
+                          <td className="px-6 py-4">{batch.risk_level}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-6 bg-cyan-50 border border-cyan-100 rounded-xl p-4 flex gap-3">
+                <Clock className="text-cyan-700 shrink-0" />
+                <p className="text-sm text-cyan-900">
+                  <strong>Workflow:</strong> Detect → Investigate → Decide → Recover.
+                  DairySync provides decision support. It does not independently certify milk as safe.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white border rounded-2xl p-10 text-center">
+              <Truck size={40} className="mx-auto text-cyan-600 mb-4" />
+              <h2 className="text-xl font-bold">{active}</h2>
+              <p className="text-slate-500 mt-2">
+                This module will be connected to its backend API in the next development step.
+              </p>
+              <button onClick={() => setActive("Dashboard")} className="mt-5 text-cyan-700 font-semibold">
+                Back to Dashboard
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default App;
