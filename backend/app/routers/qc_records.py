@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
 from ..schemas import QCCreate, QCUpdate, QCResponse
+from .auth import require_roles
 
 
 router = APIRouter(
@@ -13,11 +14,12 @@ router = APIRouter(
 )
 
 
-# 1. Create QC record
+# 1. Create QC record - QC only
 @router.post(
     "/",
     response_model=QCResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles("QC"))]
 )
 def create_qc_record(
     qc_data: QCCreate,
@@ -55,8 +57,14 @@ def create_qc_record(
     return new_record
 
 
-# 2. Get all QC records
-@router.get("/", response_model=list[QCResponse])
+# 2. Get all QC records - Admin, Receiving, QC
+@router.get(
+    "/",
+    response_model=list[QCResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Receiving", "QC"))
+    ]
+)
 def get_all_qc_records(db: Session = Depends(get_db)):
     return (
         db.query(models.QCRecord)
@@ -65,10 +73,13 @@ def get_all_qc_records(db: Session = Depends(get_db)):
     )
 
 
-# 3. Get QC records by batch
+# 3. Get QC records by batch - Admin, Receiving, QC
 @router.get(
     "/batch/{batch_id}",
-    response_model=list[QCResponse]
+    response_model=list[QCResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Receiving", "QC"))
+    ]
 )
 def get_batch_qc_records(
     batch_id: int,
@@ -92,8 +103,14 @@ def get_batch_qc_records(
     )
 
 
-# 4. Get QC record by ID
-@router.get("/{qc_id}", response_model=QCResponse)
+# 4. Get QC record by ID - Admin, Receiving, QC
+@router.get(
+    "/{qc_id}",
+    response_model=QCResponse,
+    dependencies=[
+        Depends(require_roles("Admin", "Receiving", "QC"))
+    ]
+)
 def get_qc_record(
     qc_id: int,
     db: Session = Depends(get_db)
@@ -111,8 +128,12 @@ def get_qc_record(
     return record
 
 
-# 5. Update QC record
-@router.patch("/{qc_id}", response_model=QCResponse)
+# 5. Update QC record - QC only
+@router.patch(
+    "/{qc_id}",
+    response_model=QCResponse,
+    dependencies=[Depends(require_roles("QC"))]
+)
 def update_qc_record(
     qc_id: int,
     qc_data: QCUpdate,

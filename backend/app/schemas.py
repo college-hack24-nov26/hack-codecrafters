@@ -1,7 +1,31 @@
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
+# ==============================
+# AUTHENTICATION SCHEMAS
+# ==============================
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=150)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class UserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    role: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================
+# BATCH SCHEMAS
+# ==============================
 
 class BatchCreate(BaseModel):
     batch_code: str = Field(min_length=2, max_length=80)
@@ -35,7 +59,11 @@ class BatchResponse(BaseModel):
     expected_arrival_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+# ==============================
 # SENSOR READING SCHEMAS
+# ==============================
 
 class SensorReadingCreate(BaseModel):
     batch_id: int = Field(gt=0)
@@ -59,7 +87,10 @@ class SensorReadingResponse(BaseModel):
     anomaly_flag: bool
     notes: str | None
 
+
+# ==============================
 # INCIDENT SCHEMAS
+# ==============================
 
 class IncidentCreate(BaseModel):
     batch_id: int = Field(gt=0)
@@ -90,7 +121,10 @@ class IncidentResponse(BaseModel):
     duration_minutes: float | None
     summary: str | None
 
+
+# ==============================
 # QC RECORD SCHEMAS
+# ==============================
 
 class QCCreate(BaseModel):
     batch_id: int = Field(gt=0)
@@ -122,6 +156,8 @@ class QCResponse(BaseModel):
     acidity: float | None
     qc_status: str
     notes: str | None
+
+
 # ==============================
 # DECISION SUPPORT SCHEMAS
 # ==============================
@@ -157,7 +193,10 @@ class DecisionResponse(BaseModel):
     approved_at: datetime | None
     reason_for_override: str | None
 
-    model_config = ConfigDict(from_attributes=True)# ==============================
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================
 # FACILITY MANAGEMENT SCHEMAS
 # ==============================
 
@@ -214,11 +253,3 @@ class DiversionResponse(BaseModel):
     confirmed_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ==============================
-# FACILITY MANAGEMENT SCHEMAS
-# ==============================
-

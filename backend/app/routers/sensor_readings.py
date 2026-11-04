@@ -1,9 +1,11 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
 from ..schemas import SensorReadingCreate, SensorReadingResponse
+from .auth import require_roles
 
 
 router = APIRouter(
@@ -12,11 +14,14 @@ router = APIRouter(
 )
 
 
-# 1. Save a sensor reading
+# 1. Save a sensor reading - Admin, Transport
 @router.post(
     "/",
     response_model=SensorReadingResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(require_roles("Admin", "Transport"))
+    ]
 )
 def create_sensor_reading(
     reading_data: SensorReadingCreate,
@@ -43,10 +48,13 @@ def create_sensor_reading(
     return new_reading
 
 
-# 2. Get all sensor readings for a batch
+# 2. Get sensor readings for a batch - All authorized roles
 @router.get(
     "/batch/{batch_id}",
-    response_model=list[SensorReadingResponse]
+    response_model=list[SensorReadingResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
 )
 def get_batch_sensor_readings(
     batch_id: int,

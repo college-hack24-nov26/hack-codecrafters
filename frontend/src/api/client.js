@@ -1,9 +1,9 @@
-﻿
-const API_BASE_URL = "http://127.0.0.1:8000";
+﻿const API_BASE_URL = "http://localhost:8000";
 
 export async function apiRequest(endpoint, options = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -22,6 +22,20 @@ export async function apiRequest(endpoint, options = {}) {
 }
 
 export const api = {
+  // Authentication
+  login: (credentials) =>
+    apiRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    }),
+
+  getCurrentUser: () => apiRequest("/auth/me"),
+
+  logout: () =>
+    apiRequest("/auth/logout", {
+      method: "POST",
+    }),
+
   // Batches
   getBatches: () => apiRequest("/batches/"),
 
@@ -34,18 +48,18 @@ export const api = {
   // Incidents
   getIncidents: () => apiRequest("/incidents/"),
 
-    // Sensor Readings
+  // Sensor Readings
   getSensorReadingsByBatch: (batchId) =>
     apiRequest(`/sensor-readings/batch/${batchId}`),
-  
+
   // Alerts
   getAlerts: () => apiRequest("/alerts/"),
 
-  // Mark alert as read
   markAlertRead: (alertId) =>
     apiRequest(`/alerts/${alertId}/read`, {
       method: "PATCH",
     }),
+
   // Facilities
   getFacilities: () => apiRequest("/facilities/"),
 
@@ -73,4 +87,3 @@ export const api = {
       body: JSON.stringify(reviewData),
     }),
 };
-

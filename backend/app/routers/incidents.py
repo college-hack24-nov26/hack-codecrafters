@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
 from ..schemas import IncidentCreate, IncidentUpdate, IncidentResponse
+from .auth import require_roles
 
 
 router = APIRouter(
@@ -13,11 +14,14 @@ router = APIRouter(
 )
 
 
-# 1. Create incident
+# 1. Create incident - Admin, Transport, Receiving
 @router.post(
     "/",
     response_model=IncidentResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving"))
+    ]
 )
 def create_incident(
     incident_data: IncidentCreate,
@@ -44,8 +48,14 @@ def create_incident(
     return new_incident
 
 
-# 2. Get all incidents
-@router.get("/", response_model=list[IncidentResponse])
+# 2. Get all incidents - All authorized roles
+@router.get(
+    "/",
+    response_model=list[IncidentResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
+)
 def get_all_incidents(db: Session = Depends(get_db)):
     return (
         db.query(models.Incident)
@@ -54,10 +64,13 @@ def get_all_incidents(db: Session = Depends(get_db)):
     )
 
 
-# 3. Get incidents by batch
+# 3. Get incidents by batch - All authorized roles
 @router.get(
     "/batch/{batch_id}",
-    response_model=list[IncidentResponse]
+    response_model=list[IncidentResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
 )
 def get_batch_incidents(
     batch_id: int,
@@ -81,8 +94,14 @@ def get_batch_incidents(
     )
 
 
-# 4. Get incident by ID
-@router.get("/{incident_id}", response_model=IncidentResponse)
+# 4. Get incident by ID - All authorized roles
+@router.get(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
+)
 def get_incident(
     incident_id: int,
     db: Session = Depends(get_db)
@@ -100,8 +119,14 @@ def get_incident(
     return incident
 
 
-# 5. Update incident
-@router.patch("/{incident_id}", response_model=IncidentResponse)
+# 5. Update incident - Admin, QC
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[
+        Depends(require_roles("Admin", "QC"))
+    ]
+)
 def update_incident(
     incident_id: int,
     incident_data: IncidentUpdate,

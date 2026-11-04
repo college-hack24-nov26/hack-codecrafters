@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import (
+    auth,
     batches,
     sensor_readings,
     incidents,
@@ -30,6 +31,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -37,6 +40,7 @@ app.add_middleware(
 )
 
 # Register all routers
+app.include_router(auth.router)
 app.include_router(batches.router)
 app.include_router(sensor_readings.router)
 app.include_router(incidents.router)

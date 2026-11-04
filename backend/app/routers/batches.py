@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models
 from ..schemas import BatchCreate, BatchUpdate, BatchResponse
+from .auth import require_roles
 
 
 router = APIRouter(
@@ -13,11 +15,12 @@ router = APIRouter(
 )
 
 
-# 1. Create a new batch
+# 1. Create a new batch - Admin only
 @router.post(
     "/",
     response_model=BatchResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles("Admin"))]
 )
 def create_batch(
     batch_data: BatchCreate,
@@ -49,8 +52,14 @@ def create_batch(
     return new_batch
 
 
-# 2. Get all batches
-@router.get("/", response_model=list[BatchResponse])
+# 2. Get all batches - All authorized roles
+@router.get(
+    "/",
+    response_model=list[BatchResponse],
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
+)
 def get_all_batches(db: Session = Depends(get_db)):
     batches = (
         db.query(models.Batch)
@@ -61,8 +70,14 @@ def get_all_batches(db: Session = Depends(get_db)):
     return batches
 
 
-# 3. Get batch by ID
-@router.get("/{batch_id}", response_model=BatchResponse)
+# 3. Get batch by ID - All authorized roles
+@router.get(
+    "/{batch_id}",
+    response_model=BatchResponse,
+    dependencies=[
+        Depends(require_roles("Admin", "Transport", "Receiving", "QC"))
+    ]
+)
 def get_batch(
     batch_id: int,
     db: Session = Depends(get_db)
@@ -80,8 +95,12 @@ def get_batch(
     return batch
 
 
-# 4. Update batch status and details
-@router.patch("/{batch_id}", response_model=BatchResponse)
+# 4. Update batch - Admin only
+@router.patch(
+    "/{batch_id}",
+    response_model=BatchResponse,
+    dependencies=[Depends(require_roles("Admin"))]
+)
 def update_batch(
     batch_id: int,
     batch_data: BatchUpdate,

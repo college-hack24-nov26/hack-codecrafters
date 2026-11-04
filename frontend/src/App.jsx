@@ -6,6 +6,7 @@ import {
   Activity, Clock, ShieldCheck, Plus, X, Truck, ArrowLeft
 } from "lucide-react";
 import { api } from "./api/client";
+import Login from "./Login";
 import SensorMonitoring from "./SensorMonitoring";
 import AlertsPage from "./AlertsPage";
 
@@ -32,6 +33,8 @@ const emptyForm = {
 };
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [active, setActive] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -123,9 +126,54 @@ function App() {
   }
 }
 
+  // Restore the existing server-side session before loading dashboard data.
   useEffect(() => {
-    loadDashboard();
+    let isMounted = true;
+
+    async function restoreSession() {
+      try {
+        const currentUser = await api.getCurrentUser();
+        if (isMounted) setUser(currentUser);
+      } catch {
+        if (isMounted) setUser(null);
+      } finally {
+        if (isMounted) setAuthLoading(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Load dashboard data only after a valid user session is confirmed.
+  useEffect(() => {
+    if (user) {
+      loadDashboard();
+    }
+  }, [user]);
+
+  async function handleLogout() {
+    try {
+      await api.logout();
+      setUser(null);
+      setActive("Dashboard");
+      setBatches([]);
+      setIncidents([]);
+      setQCRecords([]);
+      setDecisions([]);
+      setFacilities([]);
+      setDiversions([]);
+      setAlerts([]);
+      setSensorReadings([]);
+      setError("");
+      setSuccessMessage("");
+    } catch (err) {
+      setError(err.message || "Unable to log out. Please try again.");
+    }
+  }
 
   async function handleCreateBatch(event) {
     event.preventDefault();
@@ -217,6 +265,21 @@ function App() {
   const inputClass =
     "w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 text-sm";
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        <div className="text-center">
+          <Milk size={42} className="mx-auto mb-4 text-cyan-400" />
+          <p className="text-lg font-semibold">Checking your DairySync session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login onLogin={setUser} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex">
       <aside className={`${sidebarOpen ? "w-64" : "w-20"} bg-slate-950 text-white min-h-screen p-5 transition-all duration-300 shrink-0`}>
@@ -291,9 +354,21 @@ function App() {
             <button className="relative">
               <Bell size={21} />
             </button>
-            <div className="bg-cyan-100 text-cyan-800 rounded-full w-9 h-9 flex items-center justify-center font-bold">
-              QC
+            <div className="hidden sm:block text-right">
+              <p className="text-sm font-semibold text-slate-800">
+                {user.full_name}
+              </p>
+              <p className="text-xs text-slate-500">{user.role}</p>
             </div>
+            <div className="bg-cyan-100 text-cyan-800 rounded-full w-9 h-9 flex items-center justify-center font-bold">
+              {(user.full_name || "U").charAt(0).toUpperCase()}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-sm font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-3 py-2 rounded-lg"
+            >
+              Logout
+            </button>
           </div>
         </header>
 
