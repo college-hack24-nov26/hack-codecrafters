@@ -934,7 +934,7 @@ function App() {
                           {Object.entries(decision.evidence_summary).map(([key, value]) => (
                             <div key={key}>
                               <p className="text-xs text-slate-500">{key.replaceAll("_", " ")}</p>
-                              <p className="text-sm font-medium break-words">{value == null ? "-" : String(value)}</p>
+                              <p className="text-sm font-medium break-words whitespace-pre-wrap">{value == null ? "-" : typeof value === "object" ? JSON.stringify(value, null, 2) : String(value)}</p>
                             </div>
                           ))}
                         </div>
